@@ -1,82 +1,89 @@
-## 📂 Carpetas y Archivos
+# RabbitMQ + Scapy MITM Playground
 
-```
+Repositorio para pruebas de interceptación y modificación de tráfico AMQP con Scapy, NetfilterQueue y Docker.
+
+-----------------------------------------------------------
+📂 Carpetas y Archivos
+
 RabbitMQ/
 ├── docker-compose.yml
 ├── sender/
 │   ├── Dockerfile
-│   └── sender_cli.py          # CLI: auto‑spam o modo interactivo
+│   └── sender_cli.py           # CLI: auto-spam o modo interactivo
 ├── receiver/
 │   ├── Dockerfile
-│   └── receiver.py            # imprime cada msg al instante
-```
+│   └── receiver.py             # imprime cada msg al instante
+├── interceptor_nfqueue.py      # modifica tráfico en vivo: M-1 y M-2
+└── heartbeat_bad.py            # inyecta manualmente un heartbeat inválido (M-5)
 
----
+-----------------------------------------------------------
+🧪 ¿Qué hace cada cosa?
 
-## ¿Qué hace cada cosa?
+rabbitmq                → Broker AMQP + panel web (puertos 5672 y 15672)
+sender                  → Envía mensajes: modo interactivo (-i) o automático (--freq, -m)
+receiver                → Escucha la cola y muestra cada mensaje
+interceptor_nfqueue.py  → Intercepta tráfico con iptables + NFQUEUE, aplica M-1 y M-2
+heartbeat_bad.py        → Inyecta manualmente un heartbeat inválido (M-5) para cortar conexión
 
-| Contenedor   | Rol dramático                                                                           | Puertos / Flags           |
-| ------------ | --------------------------------------------------------------------------------------- | ------------------------- |
-| **rabbitmq** | Broker AMQP + UI web                                                                    | 5672 (AMQP) · 15672 (GUI) |
-| **receiver** | Se suscribe a la cola `TheQueue` y chilla cada mensaje con `flush=True`                    | ningún puerto expuesto    |
-| **sender**   | Envia mensajes: <br>- **Modo auto** (`--freq` & `-m`) <br>- **Modo interactivo** (`-i`) | STDIN/TTY habilitado      |
+-----------------------------------------------------------
+⚙️ Instalación rápida
 
-El compose los conecta en una red `rabbitmq-net` (192.168.20.0/24) para que se vean por hostname.
+1) Construir imágenes:
+   docker compose build
 
----
+2) Levantar broker + receiver:
+   docker compose up -d rabbit receiver
 
-## Instalación express
+3) Ver logs del receiver:
+   docker compose logs -f receiver
 
-```bash
-# 1️⃣ Construye imágenes
-docker compose build
+4) Enviar mensajes:
+   a) Modo interactivo:
+      docker compose run --rm sender -i
 
-# 2️⃣ Arranca broker + receptor en background
-docker compose up -d rabbit receiver
+   b) Auto spam cada 0.3 s:
+      docker compose run --rm sender --freq 0.3 -m "Hola"
 
-# 3️⃣ En otra terminal para ver los logs del receiver
-docker compose logs -f receiver
+Accede al dashboard: http://localhost:15672 (usuario: gabriel / pass: insaid33)
 
-# 4️⃣ Mandar mensajes
-#    A) interactivo
-docker compose run --rm sender -i
-#    B) turbo loop cada 0.3 s
-docker compose run --rm sender --freq 0.3 -m "Hola"
-```
+-----------------------------------------------------------
+🐍 Scripts MITM (Scapy)
 
-GUI: [http://localhost:15672](http://localhost:15672) (gabriel / insaid33)
+Interceptor en vivo (M-1, M-2):
+   sudo python3 interceptor_nfqueue.py
 
----
+Inyección heartbeat inválido (M-5):
+   python3 heartbeat_bad.py
 
-## Limpiar todo (El real botón nuclear)
+-----------------------------------------------------------
+🧹 Limpiar todo
 
-```bash
-# apaga y borra contenedores + volúmenes + imágenes del stack
-sudo docker compose down -v --rmi all
+Bajar contenedores, borrar volúmenes e imágenes del compose:
+   docker compose down -v --rmi all
 
-# botón nuclear global (borrará TODO Docker)
-sudo docker system prune -a --volumes --force
-```
+(opcional) botón nuclear global (⚠️ borra TODO Docker):
+   docker system prune -a --volumes --force
 
-## Requisitos
+-----------------------------------------------------------
+📦 Requisitos
 
-* Docker ≥ 20 & Docker Compose v2.
+- Docker ≥ 20.x + Docker Compose v2
+- Python ≥ 3.x con scapy y netfilterqueue
+- Acceso sudo para iptables
 
----
+-----------------------------------------------------------
+🔮 Roadmap del laboratorio
 
-## 🔮 Roadmap
+[x] Sniffer básico (captura PCAP)
+[x] Modificación en vivo con NFQUEUE (M-1, M-2)
+[x] Inyección manual heartbeat inválido (M-5)
+[ ] Fuzzing de payloads AMQP (opcional)
+[x] Documentación de resultados e imágenes
+[x] Video demostrativo
+[x] README y entrega final
 
-- [ ] Laboratorio de captura (Sniffer PCAP)
-- [ ] Intercept y Patch con Scapy
-- [ ] Fuzzing de payloads AMQP
-- [ ] Modificaciones de campos críticos
-- [ ] Análisis y métricas de impacto
-- [ ] Grabación video demo
-- [ ] Empaquetado del repositorio
-- [ ] Subida y entrega final
+-----------------------------------------------------------
+⚠️ Disclaimer
 
----
-
-## Disclaimer
-
-Este repo es **full vibe coding** mientras aprendo python, ya despues full codigo propio, nada de IA 👺.
+Proyecto para fines educativos y pruebas en entorno controlado.
+No usar en producción ni contra sistemas que no sean de tu propiedad.
